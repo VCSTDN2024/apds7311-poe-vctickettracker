@@ -16,3 +16,10 @@ You can now view secure-login-frontend in the browser.
 
   Local:            http://localhost:3000
   On Your Network:  http://192.:3000
+
+## Test Login:
+
+{
+  "email": "test@example.com",
+  "password": "yourPassword123"
+}
