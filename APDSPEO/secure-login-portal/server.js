@@ -34,8 +34,8 @@ client.connect()
 
 // SSL 
 const options = {
-  key: fs.readFileSync('secure-login-portal/keys/privatekey.pem'),
-  cert: fs.readFileSync('secure-login-portal/keys/certificate.pem'),
+  key:  fs.readFileSync('APDSPEO\\secure-login-portal\\keys\\privatekey.pem'),
+  cert: fs.readFileSync('APDSPEO\\secure-login-portal\\keys\\certificate.pem'),
 };
 
 // Middleware
@@ -140,7 +140,7 @@ app.post('/api/login', limiter, async (req, res) => {
 
        
 https.createServer(options, app).listen(PORT, () => {
-  console.log(`Server http://localhost:${PORT}`);
+  console.log(`Server https://localhost:${PORT}`);
 });
 
 
