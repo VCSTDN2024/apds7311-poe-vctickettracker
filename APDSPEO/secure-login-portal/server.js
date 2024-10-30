@@ -9,6 +9,7 @@ const rateLimit = require('express-rate-limit');
 const { MongoClient } = require('mongodb');
 require('dotenv').config(); 
 const cors = require('cors');
+const Payment = require('./Models/Payment');
 
 
 
@@ -138,9 +139,38 @@ app.post('/api/login', limiter, async (req, res) => {
   }
 });
 
-       
+mongoose.connect('mongodb+srv://st10157363:dJqkoh52dZSWur8s@cluster0.mpqj4xn.mongodb.net/paymentportal', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log('Connected to MongoDB'))
+.catch(err => console.error('Could not connect to MongoDB', err));
+
+// API endpoint to handle payment submissions
+app.post('/api/payment', async (req, res) => {
+  try {
+    // Log the received data
+    console.log('Received payment data:', req.body);
+
+    // Validate the input
+    if (!req.body.amount || !req.body.currency || !req.body.swiftCode || !req.body.recipientAccount) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const payment = new Payment(req.body);
+    await payment.save();
+    res.status(201).json({ message: 'Payment recorded successfully', paymentId: payment._id });
+  } catch (error) {
+    console.error('Error processing payment:', error);
+    res.status(500).json({ message: 'Error processing payment', error: error.message });
+  }
+});
+
+
 https.createServer(options, app).listen(PORT, () => {
   console.log(`Server https://localhost:${PORT}`);
 });
+
+
 
 
