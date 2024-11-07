@@ -1,32 +1,54 @@
-import React, { useState } from 'react'
-import axios from 'axios'
+
+import React, { useState } from 'react';
+import axios from 'axios';
+import PaymentPortal from './PaymentPortal'; 
+import AdminDashboard from './AdminDashboard'; 
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
-  const [isLogin, setIsLogin] = useState(true); 
+  const [isLogin, setIsLogin] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false); 
+  const [isAdmin, setIsAdmin] = useState(false); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const endpoint = isLogin ? 'login' : 'register'; 
+    const endpoint = isLogin ? 'login' : 'register';
     try {
-        const response = await axios.post(`https://localhost:443/api/${endpoint}`, { email, password });
+      const response = await axios.post(`https://localhost:443/api/${endpoint}`, { email, password });
 
-        if (isLogin) {
-            setMessage('Login successful! Token: ' + response.data.token);
-        } else {
-            setMessage('Registration successful! You can now log in.');
-        }
-    } catch (error) {
+      if (isLogin) {
+        const token = response.data.token;
+        localStorage.setItem('token', token);
         
-        if (error.response && error.response.data) {
-           
+       
+        if (response.data.userType === 'admin') {
+          setIsAdmin(true); 
         } else {
-            setMessage(`${isLogin ? 'Login' : 'Registration'} failed: ${error.message}`);
+          setIsAuthenticated(true); 
         }
+        
+        setMessage('Login successful! Token: ' + token);
+      } else {
+        setMessage('Registration successful! You can now log in.');
+      }
+    } catch (error) {
+      if (error.response && error.response.data) {
+        setMessage(`${isLogin ? 'Login' : 'Registration'} failed: ${error.response.data.message}`);
+      } else {
+        setMessage(`${isLogin ? 'Login' : 'Registration'} failed: ${error.message}`);
+      }
     }
-};
+  };
+
+  if (isAuthenticated) {
+    return <PaymentPortal />;
+  }
+  
+  if (isAdmin) {
+    return <AdminDashboard />; 
+  }
 
   return (
     <div>
@@ -57,8 +79,9 @@ const Auth = () => {
 
       <div>
         <button onClick={() => setIsLogin(!isLogin)}>
-          {isLogin ? ' Register' : 'Login'}
+          {isLogin ? 'Register' : 'Login'}
         </button>
+       
       </div>
     </div>
   );
