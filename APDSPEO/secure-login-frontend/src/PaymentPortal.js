@@ -210,4 +210,3 @@ function PaymentPortal({ amount }) {
 }
 
 export default PaymentPortal;
-
