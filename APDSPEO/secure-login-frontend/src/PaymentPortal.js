@@ -1,212 +1,85 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react';
+import axios from 'axios';
 
-function PaymentPortal({ amount }) {
-  const [paymentData, setPaymentData] = useState({
-    amount: '',
-    currency: 'ZAR', // Default currency
-    swiftCode: '',
-    status: 'pending'
-  })
-  const [paymentMethod, setPaymentMethod] = useState('paypal')
-  const [accountName, setAccountName] = useState('')
-  const [accountNumber, setAccountNumber] = useState('')
-  const [swiftCode, setSwiftCode] = useState('')
-  const [paypalLoaded, setPaypalLoaded] = useState(false)
-  const paypal = useRef()
+const PaymentPortal = () => {
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState('USD');
+  const [paymentMethod, setPaymentMethod] = useState('monero');
+  const [message, setMessage] = useState('');
 
-  // List of common currencies
-  const currencies = [
-    { code: 'AUD', name: 'Australian Dollar' },
-    { code: 'GBP', name: 'British Pound' },
-    { code: 'CAD', name: 'Canadian Dollar' },
-    { code: 'CNY', name: 'Chinese Yuan' },
-    { code: 'EUR', name: 'Euro' },
-    { code: 'INR', name: 'Indian Rupee' },
-    { code: 'JPY', name: 'Japanese Yen' },
-    { code: 'ZAR', name: 'South African Rand' },
-    { code: 'CHF', name: 'Swiss Franc' },
-    { code: 'USD', name: 'US Dollar' },
-    // Add more currencies as needed
-  ]
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setPaymentData(prevData => ({
-      ...prevData,
-      [name]: value
-    }))
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    try {
-      const response = await fetch('/api/payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(paymentData)
-      })
-
-      if (response.ok) {
-        const result = await response.json();
-        alert(`Payment recorded successfully. Payment ID: ${result.paymentId}`);
-
-        // Reset form or redirect user as needed
-      } else {
-        const errorData = await response.json();
-        alert(`Payment failed: ${errorData.message}`);
-      }
-    } catch (error) {
-      console.error('Error:', error)
-      alert('An error occurred')
-    }
-  }
-
-
-  useEffect(() => {
-    if (window.paypal) {
-      setPaypalLoaded(true)
-    } else {
-      const script = document.createElement('script')
-      script.src = 'https://www.paypal.com/sdk/js?client-id=YOUR_CLIENT_ID'
-      script.addEventListener('load', () => setPaypalLoaded(true))
-      document.body.appendChild(script)
-    }
-  }, [])
-
-
-  useEffect(() => {
-    if (paypalLoaded && paymentMethod === 'paypal') {
-      window.paypal
-        .Buttons({
-          createOrder: (data, actions, err) => {
-            return actions.order.create({
-              intent: "CAPTURE",
-              purchase_units: [
-                {
-                  description: "Cool stuff",
-                  amount: {
-                    currency_code: "ZAR",
-                    value: amount,
-                  },
-                },
-              ],
-            });
-          },
-          onApprove: async (data, actions) => {
-            const order = await actions.order.capture();
-            console.log(order);
-            alert("PayPal payment successful!");
-          },
-          onError: (err) => {
-            console.log(err);
-            alert("PayPal payment failed. Please try again.");
-          },
-        })
-        .render(paypal.current);
-    }
-  }, [paymentMethod, amount, paypalLoaded])
-
-
-  const handleSwiftTransfer = async (e) => {
+  const handlePaymentSubmit = async (e) => {
     e.preventDefault();
+
+    if (!amount || isNaN(amount) || amount <= 0) {
+      setMessage('Please enter a amount');
+      return;
+    }
+
+    const token = localStorage.getItem('token'); 
+
     try {
-      console.log('Processing Swift transfer:', { accountName, accountNumber, swiftCode, amount });
-      alert('Swift transfer initiated successfully!');
+      const response = await axios.post(
+        'https://localhost:443/api/submit-payment',
+        {
+          amount: parseFloat(amount),
+          currency,
+          paymentMethod,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, 
+          },
+        }
+      );
+      setMessage(response.data.message);
     } catch (error) {
-      console.error('Swift transfer error:', error);
-      alert('Swift transfer failed. Please try again.');
+      setMessage('Payment failed: ' + (error.response ? error.response.data.message : error.message));
     }
   };
 
   return (
     <div>
-      <h2>Make International Payment</h2>
-      <form onSubmit={handleSubmit}>
+      <h2>Payment Portal</h2>
+      <form onSubmit={handlePaymentSubmit}>
         <div>
-          <label htmlFor="amount">Amount:</label>
+          <label>Currency Amount:</label>
           <input
             type="number"
-            id="amount"
-            name="amount"
-            value={paymentData.amount}
-            onChange={handleChange}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
             required
+            min="0"
           />
         </div>
         <div>
-          <label htmlFor="currency">Currency:</label>
+          <label>Currency Type:</label>
           <select
-            id="currency"
-            name="currency"
-            value={paymentData.currency}
-            onChange={handleChange}
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
             required
           >
-            {currencies.map(currency => (
-              <option key={currency.code} value={currency.code}>
-                {currency.name} ({currency.code})
-              </option>
-            ))}
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="R">R</option>
           </select>
         </div>
         <div>
-        <label>
-          <input 
-            type="radio" 
-            value="paypal" 
-            checked={paymentMethod === 'paypal'} 
-            onChange={() => setPaymentMethod('paypal')}
-          />
-          PayPal
-        </label>
-        <label>
-          <input 
-            type="radio" 
-            value="swiftTransfer" 
-            checked={paymentMethod === 'swiftTransfer'} 
-            onChange={() => setPaymentMethod('swiftTransfer')}
-          />
-          Swift Transfer
-        </label>
-      </div>
-      {paymentMethod === 'paypal' ? (
-        paypalLoaded ? (
-          <div ref={paypal}></div>
-        ) : (
-          <p>Loading PayPal...</p>
-        )
-      ) : (
-        <form onSubmit={handleSwiftTransfer}>
-          <input
-            type="text"
-            placeholder="Recipient Account Name"
-            value={accountName}
-            onChange={(e) => setAccountName(e.target.value)}
+          <label>Payment Method:</label>
+          <select
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value)}
             required
-          />
-          <input
-            type="text"
-            placeholder="Recipient Account Number"
-            value={accountNumber}
-            onChange={(e) => setAccountNumber(e.target.value)}
-            required
-          />
-          <input
-            type="text"
-            placeholder="SWIFT/BIC Code"
-            value={swiftCode}
-            onChange={(e) => setSwiftCode(e.target.value)}
-            required
-          />
-        </form>
-      )}
-        <button type="submit">Pay Now</button>
+          >
+            <option value="monero">Monero</option>
+            <option value="paypal">PayPal</option>
+            <option value="swift">Swift</option>
+          </select>
+        </div>
+        <button type="submit">Submit Payment</button>
       </form>
+      {message && <p>{message}</p>}
     </div>
-  )
-}
+  );
+};
 
 export default PaymentPortal;

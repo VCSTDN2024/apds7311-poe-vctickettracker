@@ -9,10 +9,7 @@ const rateLimit = require('express-rate-limit');
 const { MongoClient } = require('mongodb');
 require('dotenv').config(); 
 const cors = require('cors');
-const Payment = require('./Models/Payment');
-
-
-
+const { ObjectId } = require('mongodb');
 const app = express();
 const PORT = process.env.PORT || 443;
 
@@ -33,8 +30,8 @@ client.connect()
 
 // SSL configuration
 const options = {
-  key:  fs.readFileSync('APDSPEO\\secure-login-portal\\keys\\privatekey.pem'),
-  cert: fs.readFileSync('APDSPEO\\secure-login-portal\\keys\\certificate.pem'),
+  key: fs.readFileSync('secure-login-portal/keys/privatekey.pem'),
+  cert: fs.readFileSync('secure-login-portal/keys/certificate.pem'),
 };
 
 // Middleware
@@ -42,21 +39,32 @@ app.use(helmet());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-//  ANTI BRUTE FORCE
+// Rate limiting to prevent brute force attacks
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 100, 
 });
 app.use(limiter);
 
-// Whitelist RegEx 
-const validateInput = (email, password) => {
+// Input validation for registration
+const validateInput = (email, password, fullName, idNumber, accountNumber) => {
   const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
-  const passwordPattern = /^[a-zA-Z0-9!@#$%^&*]{6,30}$/;
-  return emailPattern.test(email) && passwordPattern.test(password);
+  const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d!@#$%^&*]{8,30}$/;
+  const fullNamePattern = /^[A-Za-z\s]+$/; 
+  const idNumberPattern = /^\d+$/; 
+  const accountNumberPattern = /^\d{4,10}$/; 
+
+  const isEmailValid = emailPattern.test(email);
+  const isPasswordValid = passwordPattern.test(password);
+  const isFullNameValid = fullNamePattern.test(fullName);
+  const isIdNumberValid = idNumberPattern.test(idNumber);
+  const isAccountNumberValid = accountNumberPattern.test(accountNumber);
+
+  return isEmailValid && isPasswordValid && isFullNameValid && isIdNumberValid && isAccountNumberValid;
 };
 
-// HASHING + SALTING function
+
+// Password hashing function
 const hashPassword = async (password) => {
   const salt = await bcrypt.genSalt(10);
   return await bcrypt.hash(password, salt);
@@ -87,16 +95,16 @@ const authenticateToken = (req, res, next) => {
 // REGISTER route
 app.post('/api/register', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    console.log('Received data:', { email, password });
+    const { email, password, fullName, idNumber, accountNumber } = req.body;
 
-    userType="user";
+    userType = "user"; 
+    //userType = "admin";
 
-    if (!email || !password || !userType) {
-      return res.status(400).json({ error: 'All fields (email, password, userType) are required.' });
+    if (!email || !password || !userType || !fullName || !idNumber || !accountNumber) {
+      return res.status(400).json({ error: 'All fields (email, password, fullName, idNumber, accountNumber, userType) are required.' });
     }
 
-    if (!validateInput(email, password)) {
+    if (!validateInput(email, password,fullName,idNumber,accountNumber)) {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
@@ -114,8 +122,7 @@ app.post('/api/register', async (req, res) => {
     }
 
     const hashedPassword = await hashPassword(password);
-
-    const result = await collection.insertOne({ email, password: hashedPassword });
+    await collection.insertOne({ email, password: hashedPassword, userType, fullName, idNumber, accountNumber }); 
 
     return res.status(201).json({
       message: 'User registered successfully'
@@ -126,24 +133,24 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+
 // LOGIN route
 app.post('/api/login', limiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
-    console.log('Received data:', { email, password });
+    const { email, password, accountNumber } = req.body;  
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'All fields (email, password) are required.' });
+    if (!email || !password || !accountNumber) {
+      return res.status(400).json({ error: 'All fields (email, password, account number) are required.' });
     }
 
     const db = client.db('blogs');
     const collection = db.collection('user');
-    const existingUser = await collection.findOne({ email });
+    const existingUser = await collection.findOne({ email, accountNumber });  
 
     if (!existingUser) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid email, account number, or password' });
     }
-
+    //const hashedPassword = await hashPassword(password);
     const isPasswordValid = await bcrypt.compare(password, existingUser.password);
     if (isPasswordValid) {
       const token = generateToken(existingUser);
@@ -153,7 +160,7 @@ app.post('/api/login', limiter, async (req, res) => {
         userType: existingUser.userType 
       });
     } else {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid email, account number, or password' });
     }
   } catch (err) {
     console.error('Error during login:', err);
@@ -161,45 +168,113 @@ app.post('/api/login', limiter, async (req, res) => {
   }
 });
 
-mongoose.connect('mongodb+srv://st10157363:dJqkoh52dZSWur8s@cluster0.mpqj4xn.mongodb.net/paymentportal', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('Could not connect to MongoDB', err));
+const validatePaymentInput = (amount, currency, paymentMethod) => {
+  const validCurrencies = ['USD', 'EUR', 'R']; 
+  const validPaymentMethods = ['monero', 'swift', 'paypal']; 
 
-// API endpoint to handle payment submissions
-app.post('/api/payment', async (req, res) => {
+  const isAmountValid = typeof amount === 'number' && amount > 0;
+  const isCurrencyValid = validCurrencies.includes(currency);
+  const isPaymentMethodValid = validPaymentMethods.includes(paymentMethod);
+
+  return isAmountValid && isCurrencyValid && isPaymentMethodValid;
+};
+
+// Submit Payment route
+app.post('/api/submit-payment', authenticateToken, async (req, res) => {
   try {
-    // Log the received data
-    console.log('Received payment data:', req.body);
+    const { amount, currency, paymentMethod } = req.body;
 
-    // Validate the input
-    if (!req.body.amount || !req.body.currency || !req.body.swiftCode || !req.body.recipientAccount) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    if (!amount || !currency || !paymentMethod) {
+      return res.status(400).json({ error: 'All fields (amount, currency, paymentMethod) are required.' });
     }
 
-    const payment = new Payment(req.body);
-    await payment.save();
-    res.status(201).json({ message: 'Payment recorded successfully', paymentId: payment._id });
-  } catch (error) {
-    console.error('Error processing payment:', error);
-    res.status(500).json({ message: 'Error processing payment', error: error.message });
-  }
-});
-//TODO Change ObjectIdTOPayment
-// View Payments route
-app.get('/api/view-payments', authenticateToken, async (req, res) => {
-  try {
+    if (!validatePaymentInput(amount, currency, paymentMethod)) {
+      return res.status(400).json({ error: 'Invalid input. Please ensure the amount, currency, and payment method are valid.' });
+    }
+
+    const userId = req.user.id; 
+
+    //just random
+    const swiftCode = `SWIFT${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const newPayment = {
+      amount,
+      currency,
+      paymentMethod,
+      userId,
+      status: 'unresolved',
+      createdAt: new Date(),
+      swiftCode,  
+    };
+
     const db = client.db('blogs');
     const collection = db.collection('payments');
+    await collection.insertOne(newPayment);
+    res.status(201).json({ message: 'Payment processed successfully', payment: newPayment });
+  } catch (err) {
+    console.error('Error processing payment:', err);
+    res.status(500).json({ error: 'Failed to process payment' });
+  }
+});
 
-    const payments = await collection.find({ status: 'unresolved' }).toArray();
+
+// View Payments route
+app.get('/api/view-payments', async (req, res) => {
+  try {
+    const db = client.db('blogs');
+    const paymentsCollection = db.collection('payments');
+
+    const payments = await paymentsCollection.aggregate([
+      {
+        $match: {
+          status: { $ne: 'resolved' }  
+        }
+      },
+      {
+        $addFields: {
+          userId: { $toObjectId: "$userId" }
+        }
+      },
+      {
+        $lookup: {
+          from: 'user',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userDetails'
+        }
+      },
+      {
+        $unwind: {
+          path: '$userDetails',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          amount: 1,
+          currency: 1,
+          paymentMethod: 1,
+          status: 1,
+          createdAt: 1,
+          swiftCode: 1,       
+          userId: 1,
+          userDetails: {
+            _id: 1,
+            fullName: 1,
+            email: 1,
+            accountNumber: 1
+          }
+        }
+      }
+    ]).toArray();
+
+    console.log('Payments with User Details:', payments); 
 
     res.status(200).json({ payments });
-  } catch (err) {
-    console.error('Error retrieving payments:', err);
-    res.status(500).json({ error: 'Failed to retrieve payments' });
+  } catch (error) {
+    console.error('Error fetching payments:', error);
+    res.status(500).json({ message: 'Failed to fetch payments. Please try again later.' });
   }
 });
 
@@ -211,21 +286,21 @@ app.put('/api/resolve-payment', authenticateToken, async (req, res) => {
     if (!paymentId) {
       return res.status(400).json({ error: 'Payment ID is required.' });
     }
-    if (!Payment.isValid(paymentId)) {
+    if (!ObjectId.isValid(paymentId)) {
       return res.status(400).json({ error: 'Invalid Payment ID format.' });
     }
 
     const db = client.db('blogs');
     const collection = db.collection('payments');
 
-    const payment = await collection.findOne({ _id: new Payment(paymentId) });
+    const payment = await collection.findOne({ _id: new ObjectId(paymentId) });
 
     if (!payment) {
       return res.status(404).json({ error: 'Payment not found.' });
     }
 
     await collection.updateOne(
-      { _id: new Payment(paymentId) },
+      { _id: new ObjectId(paymentId) },
       { $set: { status: 'resolved' } }
     );
 
