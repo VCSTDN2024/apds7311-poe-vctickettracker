@@ -1,37 +1,98 @@
-import React, { useState } from 'react'
-import axios from 'axios'
+import React, { useState } from 'react';
+import axios from 'axios';
+import PaymentPortal from './PaymentPortal'; 
+import AdminDashboard from './AdminDashboard'; 
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [idNumber, setIdNumber] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
   const [message, setMessage] = useState('');
-  const [isLogin, setIsLogin] = useState(true); 
+  const [isLogin, setIsLogin] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false); 
+  const [isAdmin, setIsAdmin] = useState(false); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const endpoint = isLogin ? 'login' : 'register'; 
-    try {
-        const response = await axios.post(`https://localhost:443/api/${endpoint}`, { email, password });
+    const endpoint = isLogin ? 'login' : 'register';
 
-        if (isLogin) {
-            setMessage('Login successful! Token: ' + response.data.token);
-        } else {
-            setMessage('Registration successful! You can now log in.');
-        }
-    } catch (error) {
+    
+    const data = isLogin 
+      ? { email, password, accountNumber } 
+      : { email, password, fullName, idNumber, accountNumber };
+
+    try {
+      const response = await axios.post(`https://localhost:443/api/${endpoint}`, data);
+
+      if (isLogin) {
+        const token = response.data.token;
+        localStorage.setItem('token', token);
+
         
-        if (error.response && error.response.data) {
-           
+        if (response.data.userType === 'admin') {
+          setIsAdmin(true); 
         } else {
-            setMessage(`${isLogin ? 'Login' : 'Registration'} failed: ${error.message}`);
+          setIsAuthenticated(true); 
         }
+        
+        setMessage('Login successful!');
+      } else {
+        setMessage('Registration successful! You can now log in.');
+      }
+    } catch (error) {
+      if (error.response && error.response.data) {
+        setMessage(`${isLogin ? 'Login' : 'Registration'} failed: ${error.response.data.message}`);
+      } else {
+        setMessage(`${isLogin ? 'Login' : 'Registration'} failed: ${error.message}`);
+      }
     }
-};
+  };
+
+  if (isAuthenticated) {
+    return <PaymentPortal />;
+  }
+  
+  if (isAdmin) {
+    return <AdminDashboard />; 
+  }
 
   return (
     <div>
       <h2>{isLogin ? 'Login' : 'Register'}</h2>
       <form onSubmit={handleSubmit}>
+        {!isLogin && (
+          <>
+            <div>
+              <label>Full Name:</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required={!isLogin}
+              />
+            </div>
+            <div>
+              <label>ID Number:</label>
+              <input
+                type="text"
+                value={idNumber}
+                onChange={(e) => setIdNumber(e.target.value)}
+                required={!isLogin}
+              />
+            </div>
+            <div>
+              <label>Account Number:</label>
+              <input
+                type="text"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+                required={!isLogin}
+              />
+            </div>
+          </>
+        )}
         <div>
           <label>Email:</label>
           <input
@@ -50,6 +111,17 @@ const Auth = () => {
             required
           />
         </div>
+        {isLogin && (
+          <div>
+            <label>Account Number:</label>
+            <input
+              type="text"
+              value={accountNumber}
+              onChange={(e) => setAccountNumber(e.target.value)}
+              required
+            />
+          </div>
+        )}
         <button type="submit">{isLogin ? 'Login' : 'Register'}</button>
       </form>
 
@@ -57,7 +129,7 @@ const Auth = () => {
 
       <div>
         <button onClick={() => setIsLogin(!isLogin)}>
-          {isLogin ? ' Register' : 'Login'}
+          {isLogin ? 'Register' : 'Login'}
         </button>
       </div>
     </div>
