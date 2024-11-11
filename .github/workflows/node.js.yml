@@ -21,7 +21,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Use secure-login-portal
+    - name: Use APDSPEO\secure-login-portal
       uses: actions/setup-node@v4
       with:
         # Set always-auth in npmrc.
@@ -39,7 +39,7 @@ jobs:
     - run: |
             npm test
 
-    - name: Use secure-login-frontend
+    - name: Use APDSPEO\secure-login-frontend
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
