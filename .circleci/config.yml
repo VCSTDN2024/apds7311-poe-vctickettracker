@@ -2,21 +2,30 @@
 # See: https://circleci.com/docs/configuration-reference
 version: 2.1
 
-# Orbs are reusable packages of CircleCI configuration that you may share across projects, enabling you to create encapsulated, parameterized commands, jobs, and executors that can be used across multiple projects.
-# See: https://circleci.com/docs/orb-intro/
+# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
 orbs:
-  # See the Node orb documentation here: https://circleci.com/developer/orbs/orb/circleci/node
-  node: circleci/node@5.2
+  node: circleci/node@5.0.2
 
-# Orchestrate jobs using workflows
-# See: https://circleci.com/docs/workflows/ & https://circleci.com/docs/configuration-reference/#workflows
+jobs:
+  backend:
+    executor: node/default
+    
+    steps:
+      - run: npm install
+      - run: npm run build --if-present
+      - run: npm test
+  frontend:
+    executor: node/default
+    steps:  
+      - run: npm install
+      - run: npm run build --if-present
+      - run: npm test
+      
 workflows:
   sample: # This is the name of the workflow, feel free to change it to better match your workflow.
     # Inside the workflow, you define the jobs you want to run.
     jobs:
-      - node/test:
-          # This is the node version to use for the `cimg/node` tag
-          # Relevant tags can be found on the CircleCI Developer Hub
-          # https://circleci.com/developer/images/image/cimg/node
-          version: '20.x'
-          pkg-manager: npm
+      - frontend
+      - backend
+
