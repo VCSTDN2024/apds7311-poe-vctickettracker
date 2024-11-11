@@ -21,7 +21,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Use .\APDSPEO\secure-login-portal
+    - name: Use apds7311-poe-vctickettracker\APDSPEO\secure-login-portal
       uses: actions/setup-node@v4
       with:
         # Set always-auth in npmrc.
