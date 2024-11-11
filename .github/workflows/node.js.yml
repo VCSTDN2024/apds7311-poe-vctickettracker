@@ -10,43 +10,42 @@ on:
     branches: [ "main", "WorkFlow" ]
 
 jobs:
-  build:
-
+  backend:
     runs-on: windows-latest
-
+    defaults:
+      run:
+        working-directory: ./APDSPEO/secure-login-portal
     strategy:
       matrix:
-        node-version: [ 20.x, 22.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
+        node-version: [20.x, 22.x]
     steps:
-    - uses: actions/checkout@v4
-    - name: Use APDSPEO\secure-login-portal
-      uses: actions/setup-node@v4
-      with:
-        # Set always-auth in npmrc.
-        #always-auth: false # optional, default is false
-        # Version Spec of the version to use. Examples: 12.x, 10.15.1, >=10.15.0.
-        node-version: '20.x'  # optional
-        # Used to specify a package manager for caching in the default directory. Supported values: npm, yarn, pnpm.
-        #cache: npm # optional
-        # Used to specify the path to a dependency file: package-lock.json, yarn.lock, etc. Supports wildcards or a list of file names for caching multiple dependencies.
-        #cache-dependency-path: APDSPEO\secure-login-frontend\package-lock.json, APDSPEO\secure-login-frontend\package-lock.json # optional
-    - run: |
-            npm install
-    - run: |
-            npm run build --if-present
-    - run: |
-            npm test
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: secure-login-portal/package-lock.json
+      - run: npm install
+      - run: npm run build --if-present
+      - run: npm test
 
-    - name: Use APDSPEO\secure-login-frontend
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-
-    - run: |
-            npm install
-    - run: |
-            npm run build --if-present
-    - run: |
-            npm test
+  frontend:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: ./APDSPEO/secure-login-frontend
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: secure-login-frontend/package-lock.json
+      - run: npm install
+      - run: npm run build --if-present
+      - run: npm test
