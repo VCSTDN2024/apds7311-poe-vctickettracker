@@ -19,10 +19,32 @@ You can now view secure-login-frontend in the browser.
 
 ## Test Login:
 
+normal user
 {
-  "email": "test@example.com",
-  "password": "yourPassword123"
+  "email": "xobber@xobber.com",
+  "password": "bobberpassword",
+  accountNumber: "3"
 }
+
+admin user
+{
+  "email": "example@example.com",
+  "password": "bobberpassword",
+  accountNumber: "420"
+}
+## Test Reg:
+
+{
+  "email": "newuser@example.com",
+  "password": "SecurePassword123!",
+  "fullName": "John Doe",
+  "idNumber": "1234567890",
+  "accountNumber": "9876543210"
+}
+
+## Youtube Video:
+
++ [https://youtu.be/OoI-_OmlmNU](https://youtu.be/xjCFHdNdL_A?si=liUuG_uhkS_Aw2pT)
 
 ## Example of succsess
 
