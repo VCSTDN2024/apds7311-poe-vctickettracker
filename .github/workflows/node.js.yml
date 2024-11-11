@@ -25,13 +25,13 @@ jobs:
       uses: actions/setup-node@v4
       with:
         # Set always-auth in npmrc.
-        always-auth: false # optional, default is false
+        #always-auth: false # optional, default is false
         # Version Spec of the version to use. Examples: 12.x, 10.15.1, >=10.15.0.
-        node-version: '20.x'# optional
+        node-version: '20.x'  # optional
         # Used to specify a package manager for caching in the default directory. Supported values: npm, yarn, pnpm.
-        cache: npm # optional
+        #cache: npm # optional
         # Used to specify the path to a dependency file: package-lock.json, yarn.lock, etc. Supports wildcards or a list of file names for caching multiple dependencies.
-        cache-dependency-path: APDSPEO\secure-login-frontend\package-lock.json, APDSPEO\secure-login-frontend\package-lock.json # optional
+        #cache-dependency-path: APDSPEO\secure-login-frontend\package-lock.json, APDSPEO\secure-login-frontend\package-lock.json # optional
     - run: |
             npm install
     - run: |
