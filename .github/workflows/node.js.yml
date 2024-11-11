@@ -5,9 +5,9 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ "MergeBase" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "MergeBase" ]
+    branches: [ "main" ]
 
 jobs:
   build:
